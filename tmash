@@ -1,0 +1,40 @@
+#!/bin/bash
+pathadd() {
+    if [ -d "$1" ] && [[ ":$PATH:" != *":$1:"* ]]; then
+        PATH="$1:${PATH:+"$PATH"}"
+      fi
+}
+
+pathadd /usr/local/bin
+SERVER=$1
+
+# abort if we're already inside a TMUX session
+[ "$TMUX" == "" ] || exit 0
+
+if [ -z "$SERVER" ]
+  then
+    SERVER="localhost"
+fi
+
+# startup a "default" session if none currently exists
+#ssh ${SERVER} tmux has-session -t _default || ssh ${SERVER} tmux new-session -s _default -d
+
+# present menu for user to choose which workspace to open
+PS3="Please choose your session: "
+options=($(ssh ${SERVER} tmux list-sessions -F \"#S\") "New")
+echo "Available sessions"
+echo "------------------"
+select opt in "${options[@]}"
+do
+  case $opt in
+    "New")
+      read -p "Enter new session name: " SESSION_NAME
+      mosh ${SERVER} -- tmate -f ~/.tmate.conf new -s "$SESSION_NAME"
+      break
+      ;;
+    *)
+      mosh ${SERVER} -- tmate -f ~/.tmate.conf attach-session -t $opt 
+      break
+      ;;
+  esac
+done
